@@ -9,7 +9,8 @@ export class MainService {
 		const page = await connectPageWithProxy(proxy);
 
 		try {
-			page.goto(process.env.ONLYFANS_URL!);
+			await page.goto(process.env.ONLYFANS_URL!);
+			await page.waitForNetworkIdle();
 
 			await page.waitForSelector('input[name="email"]');
 			await page.type('input[name="email"]', email);
@@ -17,82 +18,85 @@ export class MainService {
 			await page.type('input[name="password"]', password);
 			await page.click('button[data-v-6a0aff74]');
 
-			await page.waitForSelector('div[data-v-96f37e36] div');
+			await page.waitForSelector('#g-recaptcha-response');
 
-			const createTaskResponse = await fetch(
-				'https://api.rucaptcha.com/createTask',
-				{
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({
-						key: process.env.RUCAPTCHA_CLIENT_KEY!,
-						task: {
-							type: 'RecaptchaV2TaskProxyless',
-							websiteURL: process.env.ONLYFANS_URL!,
-							websiteKey: process.env.ONLYFANS_CAPTCHA_KEY!,
-							isInvisible: false
-						}
-					})
-				}
-			);
+			// console.log('waiting for recaptcha');
 
-			console.log('create task response');
+			// const createTaskResponse = await fetch(
+			// 	'https://api.rucaptcha.com/createTask',
+			// 	{
+			// 		method: 'POST',
+			// 		headers: {
+			// 			'Content-Type': 'application/json'
+			// 		},
+			// 		body: JSON.stringify({
+			// 			clientKey: process.env.RUCAPTCHA_CLIENT_KEY!,
+			// 			task: {
+			// 				type: 'RecaptchaV2TaskProxyless',
+			// 				websiteURL: process.env.ONLYFANS_URL!,
+			// 				websiteKey: process.env.ONLYFANS_CAPTCHA_KEY!,
+			// 				isInvisible: false
+			// 			}
+			// 		})
+			// 	}
+			// );
 
-			const createTaskData = await createTaskResponse.json();
+			// console.log('create task response');
 
-			if (createTaskData.errorId) {
-				console.error('Create task error', createTaskData);
-				return;
-			}
+			// const createTaskData = await createTaskResponse.json();
 
-			const taskId = createTaskData.taskId;
-			let taskCompleted = false;
-			let taskResult: any;
+			// if (createTaskData.errorId) {
+			// 	console.error('Create task error', createTaskData);
+			// 	return;
+			// }
 
-			while (!taskCompleted) {
-				await new Promise(resolve => setTimeout(resolve, 5000));
+			// const taskId = createTaskData.taskId;
+			// let taskCompleted = false;
+			// let taskResult: any;
 
-				const getTaskResultResponse = await fetch(
-					'https://api.rucaptcha.com/getTaskResult',
-					{
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json'
-						},
-						body: JSON.stringify({
-							clientKey: process.env.RUCAPTCHA_CLIENT_KEY!,
-							taskId
-						})
-					}
-				);
+			// while (!taskCompleted) {
+			// 	await new Promise(resolve => setTimeout(resolve, 5000));
 
-				const getTaskResultData = await getTaskResultResponse.json();
+			// 	const getTaskResultResponse = await fetch(
+			// 		'https://api.rucaptcha.com/getTaskResult',
+			// 		{
+			// 			method: 'POST',
+			// 			headers: {
+			// 				'Content-Type': 'application/json'
+			// 			},
+			// 			body: JSON.stringify({
+			// 				clientKey: process.env.RUCAPTCHA_CLIENT_KEY!,
+			// 				taskId
+			// 			})
+			// 		}
+			// 	);
 
-				if (getTaskResultData.errorId) {
-					console.error('Get task result error', getTaskResultData);
-					return;
-				}
+			// 	const getTaskResultData = await getTaskResultResponse.json();
 
-				taskCompleted = getTaskResultData.status === 'ready';
-				if (taskCompleted) {
-					taskResult = getTaskResultData.solution.gRecaptchaResponse;
+			// 	console.log('get task result response', getTaskResultData);
 
-					console.log('task result');
-				}
-			}
+			// 	if (getTaskResultData.errorId) {
+			// 		console.error('Get task result error', getTaskResultData);
+			// 		return;
+			// 	}
 
-			const reCaptcha = await page.waitForSelector(
-				'#g-recaptcha-response'
-			);
-			await page.evaluate(
-				([result, reCaptcha]) => {
-					reCaptcha.innerHTML = result;
-				},
-				[taskResult, reCaptcha]
-			);
-			1;
+			// 	taskCompleted = getTaskResultData.status === 'ready';
+			// 	if (taskCompleted) {
+			// 		taskResult = getTaskResultData.solution.gRecaptchaResponse;
+			// 	}
+			// }
+
+			// await page.evaluate(result => {
+			// 	(
+			// 		document.getElementById(
+			// 			'g-recaptcha-response'
+			// 		) as HTMLTextAreaElement
+			// 	).innerHTML = result;
+			// }, taskResult);
+
+			const from = await page.$('form[data-v-6a0aff74]');
+			await from?.evaluate(form => form.submit());
+
 			return { email, password };
 		} catch (error) {
 			console.log(error);
