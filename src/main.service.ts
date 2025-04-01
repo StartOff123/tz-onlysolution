@@ -33,20 +33,10 @@ export class MainService {
 
 			const taskResult = await recaptcha.solve();
 
-			await page.evaluate(() => {
-				window['grecaptcha'] = {
-					render: function (container, params) {
-						window['callbackCopy'] = params.callback;
-					}
-				};
-			});
-
 			await page.evaluate(result => {
-				(
-					document.getElementById(
-						'g-recaptcha-response'
-					) as HTMLTextAreaElement
-				).innerHTML = result;
+				document
+					.getElementById('g-recaptcha-response')
+					?.setAttribute('value', result);
 			}, taskResult);
 
 			return { email, password };
